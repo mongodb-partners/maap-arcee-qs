@@ -19,7 +19,7 @@ EC2_INSTANCE_TYPE="t3.xlarge"
 ServerInstanceProfile="MAAPArceeServerInstanceProfile"
 
 INITIAL_INSTANCE_COUNT="1"
-VOLUME_SIZE=100
+VolumeSize=100
 
 GIT_REPO_URL="https://github.com/mongodb-partners/maap-arcee-qs.git"
 
@@ -144,10 +144,6 @@ deploy_infra()
 
 deploy_ec2()
 {
-  # The private SSH key
-  log_message "Reading SSH private key..."
-  GIT_SSH_PRIVATE_KEY=$(cat "$GIT_SSH_PRIVATE_KEY_PATH")
-
   typeset -A ami_map # Image name: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20240927" (Ubuntu Server 22.04 LTS (HVM) SSD Volume Type)
   ami_map=(
       ["ap-northeast-1"]="ami-0ac6b9b2908f3e20d"
