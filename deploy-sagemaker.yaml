@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "CloudFormation template to deploy an endpoint for 'Arcee SuperNova'."
+
+Parameters:
+  ModelPackageName:
+    Type: String
+    Description: The Amazon Resource Name (ARN) of the SageMaker model package to deploy
+    AllowedPattern: "arn:aws:sagemaker:[a-z0-9-]+:[0-9]{12}:model-package/[a-zA-Z0-9](-*[a-zA-Z0-9])*"
+    Default: "arn:aws:sagemaker:us-east-1:865070037744:model-package/arcee-supernova-v1-awq-tgi-mar-9993ff88ff823eccb942ae8714499cb2"
+    ConstraintDescription: ModelPackageName must be a valid SageMaker model package ARN
+
+  EndpointName:
+    Type: String
+    Description: The name of the SageMaker endpoint
+    AllowedPattern: "[a-zA-Z0-9-]+"
+    Default: "Endpoint-Arcee-SuperNova"
+    ConstraintDescription: EndpointName must contain only alphanumeric characters and hyphens
+
+  InstanceType:
+    Type: String
+    Description: The Amazon EC2 instance type to use for hosting the model (e.g., ml.g5.12xlarge, ml.g6.24xlarge)
+    AllowedValues:
+      - "ml.g5.12xlarge"
+      - "ml.g5.24xlarge"
+      - "ml.g6.12xlarge"
+      - "ml.g6.24xlarge"
+    Default: "ml.g5.12xlarge"
+    ConstraintDescription: InstanceType must be a valid SageMaker instance type
+
+  InitialInstanceCount:
+    Type: String
+    Description: The initial number of EC2 instances to launch for the endpoint (1-16)
+    AllowedPattern: "^([1-9]|1[0-6])$"
+    Default: "1"
+    ConstraintDescription: InitialInstanceCount must be an integer between 1 and 16
+
+Resources:
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+      Policies:
+        - PolicyName: S3ReadAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource:
+                  - arn:aws:s3:::*
+
+  SageMakerModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      PrimaryContainer:
+        ModelPackageName: !Ref ModelPackageName
+      ExecutionRoleArn: !GetAtt SageMakerExecutionRole.Arn
+      EnableNetworkIsolation: true
+
+  SageMakerEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - InitialInstanceCount: !Ref InitialInstanceCount
+          InstanceType: !Ref InstanceType
+          ModelName: !GetAtt SageMakerModel.ModelName
+          VariantName: AllTraffic
+          InitialVariantWeight: 1
+
+  SageMakerEndpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointName: !Ref EndpointName
+      EndpointConfigName: !GetAtt SageMakerEndpointConfig.EndpointConfigName
+
+Outputs:
+  EndpointName:
+    Description: Name of the SageMaker Endpoint
+    Value: !Ref EndpointName  # Reference the parameter directly
+
+  EndpointURL:
+    Description: The URL to invoke the endpoint
+    Value: !Sub 'https://runtime.sagemaker.${AWS::Region}.amazonaws.com/endpoints/${EndpointName}/invocations'
+
+  ExecutionRoleArn:
+    Description: ARN of the SageMaker Execution Role
+    Value: !GetAtt SageMakerExecutionRole.Arn
+

@@ -1,0 +1,19 @@
+services:
+  loader:
+    image: loader
+    container_name: 'loader'
+    ports:
+      - 8001:8001
+  main:
+    image: main
+    container_name: 'main'
+    ports:
+      - 8000:8000
+  ui:
+    image: ui
+    container_name: 'ui'
+    depends_on:
+      - loader
+      - main    
+    ports:
+      - 7860:7860
